@@ -1,0 +1,75 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: web-api
+
+Parameters:
+  Environment:
+    Type: String
+    AllowedValues:
+      - Production
+      - Staging
+
+Globals:
+  Function:
+    Timeout: 3
+  Api:
+    Cors:
+      AllowMethods: "'*'"
+      AllowHeaders: "'*'"
+      AllowOrigin: "'*'"
+
+Resources:
+  NotemappApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: api/
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      Architectures:
+        - x86_64
+      Policies:
+        - AWSLambdaExecute
+        - DynamoDBCrudPolicy:
+            TableName: !Ref NoteTable
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref NoteTable
+      Events:
+        CreateNote:
+          Type: Api
+          Properties:
+            Path: /v1/note
+            Method: POST
+            RestApiId: !Ref NotemappApi
+        GetNote:
+          Type: Api
+          Properties:
+            Path: /v1/note/{id}
+            Method: GET
+            RestApiId: !Ref NotemappApi
+        CreateStroke:
+          Type: Api
+          Properties:
+            Path: /v1/note/{id}/stroke
+            Method: POST
+            RestApiId: !Ref NotemappApi
+        DeleteStroke:
+          Type: Api
+          Properties:
+            Path: /v1/note/{id}/stroke
+            Method: DELETE
+            RestApiId: !Ref NotemappApi
+  NotemappApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: !Sub ${Environment}
+  NoteTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
